@@ -182,7 +182,7 @@
                   "timeoutSeconds": 3,
                   "initialDelaySeconds": 5,
                   "httpGet": {
-                    "path": "/",
+                    "path": "/posts",
                     "port": 8080
                   }
                 },
@@ -190,7 +190,7 @@
                   "timeoutSeconds": 3,
                   "initialDelaySeconds": 10,
                   "httpGet": {
-                    "path": "/",
+                    "path": "/posts",
                     "port": 8080
                   }
                 },
