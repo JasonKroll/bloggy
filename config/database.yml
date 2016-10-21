@@ -42,6 +42,10 @@ default: &default
   port: <%= ENV["#{db_service}_SERVICE_PORT"] %>
   database: <%= ENV["POSTGRESQL_DATABASE"] %>
 
+production:
+  <<: *default
+
+
 development:
   adapter: sqlite3
   database: db/test.sqlite3
@@ -112,8 +116,3 @@ test:
 #   production:
 #     url: <%= ENV['DATABASE_URL'] %>
 #
-production:
-  <<: *default
-  database: rails-app_production
-  username: rails-app
-  password: <%= ENV['RAILS-APP_DATABASE_PASSWORD'] %>
