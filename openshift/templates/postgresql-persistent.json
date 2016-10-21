@@ -1,0 +1,327 @@
+{
+    "kind": "Template",
+    "apiVersion": "v1",
+    "metadata": {
+        "name": "postgresql-persistent",
+        "annotations": {
+            "description": "PostgreSQL database service with persistent storage. This template requires 1 persistent storage claim. Scaling to more than one replica is not supported.",
+            "iconClass": "icon-postgresql",
+            "tags": "database,postgresql,rails"
+        }
+    },
+    "objects": [
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "creationTimestamp": null,
+                "name": "${DATABASE_SERVICE_NAME}"
+            },
+            "spec": {
+                "portalIP": "",
+                "ports": [
+                    {
+                        "name": "postgresql",
+                        "nodePort": 0,
+                        "port": 5432,
+                        "protocol": "TCP",
+                        "targetPort": 5432
+                    }
+                ],
+                "selector": {
+                    "name": "${DATABASE_SERVICE_NAME}"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "annotations": {
+                    "volume.alpha.kubernetes.io/storage-class": "dynamic"
+                },
+                "name": "${DATABASE_SERVICE_NAME}"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "${VOLUME_CAPACITY}"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "DeploymentConfig",
+            "metadata": {
+                "creationTimestamp": null,
+                "name": "${DATABASE_SERVICE_NAME}"
+            },
+            "spec": {
+                "replicas": 1,
+                "selector": {
+                    "name": "${DATABASE_SERVICE_NAME}"
+                },
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "template": {
+                    "metadata": {
+                        "creationTimestamp": null,
+                        "labels": {
+                            "name": "${DATABASE_SERVICE_NAME}"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "capabilities": {},
+                                "env": [
+                                    {
+                                        "name": "POSTGRESQL_USER",
+                                        "value": "${POSTGRESQL_USER}"
+                                    },
+                                    {
+                                        "name": "POSTGRESQL_PASSWORD",
+                                        "value": "${POSTGRESQL_PASSWORD}"
+                                    },
+                                    {
+                                        "name": "POSTGRESQL_DATABASE",
+                                        "value": "${POSTGRESQL_DATABASE}"
+                                    }
+                                ],
+                               "resources": {
+                                    "limits": {
+                                        "memory": "${MEMORY_POSTGRESQL_LIMIT}"
+                                    }
+                                },
+                                "image": " ",
+                                "imagePullPolicy": "IfNotPresent",
+                                "livenessProbe": {
+                                    "initialDelaySeconds": 30,
+                                    "tcpSocket": {
+                                        "port": 5432
+                                    },
+                                    "timeoutSeconds": 1
+                                },
+                                "name": "postgresql",
+                                "ports": [
+                                    {
+                                        "containerPort": 5432,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+                                "readinessProbe": {
+                                    "exec": {
+                                        "command": [
+                                            "/bin/sh",
+                                            "-i",
+                                            "-c",
+                                            "psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c 'SELECT 1'"
+                                        ]
+                                    },
+                                    "initialDelaySeconds": 5,
+                                    "timeoutSeconds": 1
+                                },
+                                "securityContext": {
+                                    "capabilities": {},
+                                    "privileged": false
+                                },
+                                "terminationMessagePath": "/dev/termination-log",
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/var/lib/pgsql/data",
+                                        "name": "${DATABASE_SERVICE_NAME}-data"
+                                    }
+                                ]
+                            }
+                        ],
+                        "dnsPolicy": "ClusterFirst",
+                        "restartPolicy": "Always",
+                        "volumes": [
+                            {
+                                "name": "${DATABASE_SERVICE_NAME}-data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "${DATABASE_SERVICE_NAME}"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "triggers": [
+                    {
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "postgresql"
+                            ],
+                            "from": {
+                                "kind": "ImageStreamTag",
+                                "name": "postgresql:9.5",
+                                "namespace": "openshift"
+                            },
+                            "lastTriggeredImage": ""
+                        },
+                        "type": "ImageChange"
+                    },
+                    {
+                        "type": "ConfigChange"
+                    }
+                ]
+            },
+            "status": {}
+        }
+    ],
+    "parameters": [
+         {
+          "name": "NAME",
+          "displayName": "Name",
+          "description": "The name assigned to all of the frontend objects defined in this template.",
+          "required": true,
+          "value": "rails-pg"
+         },
+         {
+          "name": "NAMESPACE",
+          "displayName": "Namespace",
+          "required": true,
+          "description": "The OpenShift Namespace where the ImageStream resides.",
+          "value": "openshift"
+         },
+         {
+          "name": "MEMORY_LIMIT",
+          "displayName": "Memory Limit",
+          "required": true,
+          "description": "Maximum amount of memory the Rails container can use.",
+          "value": "256Mi"
+         },
+         {
+          "name": "MEMORY_POSTGRESQL_LIMIT",
+          "displayName": "Memory Limit (PostgreSQL)",
+          "required": true,
+          "description": "Maximum amount of memory the PostgreSQL container can use.",
+          "value": "256Mi"
+         },
+         {
+          "name": "SOURCE_REPOSITORY_URL",
+          "displayName": "Git Repository URL",
+          "required": true,
+          "description": "The URL of the repository with your application source code.",
+          "value": "https://github.com/openshift/rails-ex.git"
+         },
+         {
+          "name": "SOURCE_REPOSITORY_REF",
+          "displayName": "Git Reference",
+          "description": "Set this to a branch name, tag or other ref of your repository if you are not using the default branch."
+         },
+         {
+          "name": "CONTEXT_DIR",
+          "displayName": "Context Directory",
+          "description": "Set this to the relative path to your project if it is not in the root of your repository."
+         },
+         {
+          "name": "APPLICATION_DOMAIN",
+          "displayName": "Application Hostname",
+          "description": "The exposed hostname that will route to the Rails service, if left blank a value will be defaulted.",
+          "value": ""
+         },
+         {
+          "name": "GITHUB_WEBHOOK_SECRET",
+          "displayName": "GitHub Webhook Secret",
+          "description": "A secret string used to configure the GitHub webhook.",
+          "generate": "expression",
+          "from": "[a-zA-Z0-9]{40}"
+         },
+         {
+          "name": "SECRET_KEY_BASE",
+          "displayName": "Secret Key",
+          "description": "Your secret key for verifying the integrity of signed cookies.",
+          "generate": "expression",
+          "from": "[a-z0-9]{127}"
+         },
+         {
+          "name": "APPLICATION_USER",
+          "displayName": "Application Username",
+          "required": true,
+          "description": "The application user that is used within the sample application to authorize access on pages.",
+          "value": "openshift"
+         },
+         {
+          "name": "APPLICATION_PASSWORD",
+          "displayName": "Application Password",
+          "required": true,
+          "description": "The application password that is used within the sample application to authorize access on pages.",
+          "value": "secret"
+         },
+         {
+          "name": "RAILS_ENV",
+          "displayName": "Rails Environment",
+          "required": true,
+          "description": "Environment under which the sample application will run. Could be set to production, development or test.",
+          "value": "production"
+         },
+         {
+          "name": "POSTGRESQL_MAX_CONNECTIONS",
+          "displayName": "Maximum Database Connections",
+          "value": "100"
+         },
+         {
+          "name": "POSTGRESQL_SHARED_BUFFERS",
+          "displayName": "Shared Buffer Amount",
+          "value": "12MB"
+         },
+         {
+          "name": "RUBYGEM_MIRROR",
+          "displayName": "Custom RubyGems Mirror URL",
+          "description": "The custom RubyGems mirror URL",
+          "value": ""
+         },
+        {
+            "name": "DATABASE_SERVICE_NAME",
+            "displayName": "Database Service Name",
+            "description": "The name of the OpenShift Service exposed for the database.",
+            "value": "postgresql",
+            "required": true
+        },
+        {
+            "name": "POSTGRESQL_USER",
+            "displayName": "PostgreSQL Connection Username",
+            "description": "Username for PostgreSQL user that will be used for accessing the database.",
+            "generate": "expression",
+            "from": "user[A-Z0-9]{3}",
+            "required": true
+        },
+        {
+            "name": "POSTGRESQL_PASSWORD",
+            "displayName": "PostgreSQL Connection Password",
+            "description": "Password for the PostgreSQL connection user.",
+            "generate": "expression",
+            "from": "[a-zA-Z0-9]{16}",
+            "required": true
+        },
+        {
+            "name": "POSTGRESQL_DATABASE",
+            "displayName": "PostgreSQL Database Name",
+            "description": "Name of the PostgreSQL database accessed.",
+            "value": "sampledb",
+            "required": true
+        },
+        {
+            "name": "VOLUME_CAPACITY",
+            "displayName": "Volume Capacity",
+            "description": "Volume space available for data, e.g. 512Mi, 2Gi.",
+            "value": "1Gi",
+            "required": true
+        }
+    ],
+    "labels": {
+        "template": "postgresql-template"
+    }
+}
