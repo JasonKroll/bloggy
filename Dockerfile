@@ -1,4 +1,4 @@
-FROM openshift/ruby-23-centos7
+FROM ruby:2.3.1
 
 ADD Gemfile /app/
 ADD Gemfile.lock /app/
