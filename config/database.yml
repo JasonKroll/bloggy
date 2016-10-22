@@ -44,6 +44,7 @@ default: &default
 
 production:
   <<: *default
+  url: <%= ENV["#{db_service}_SERVICE_HOST"] %>
 
 
 development:
